@@ -17,4 +17,4 @@ __pycache__/
 # Large result files (back these up separately)
 results/*.parquet
 
-notebooks/explore_openml
+notebooks/explore_openml.ipynb
