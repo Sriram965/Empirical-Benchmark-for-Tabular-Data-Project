@@ -1,0 +1,20 @@
+# Data files (too large for GitHub)
+data/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
+
+# Environment
+.env
+*.egg-info/
+
+# Mac system files
+.DS_Store
+
+# Large result files (back these up separately)
+results/*.parquet
+
+notebooks/explore_openml
