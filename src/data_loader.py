@@ -13,12 +13,20 @@ openml.config.cache_directory = os.path.expanduser(
     '~/Desktop/codes/EMPIRICAL PROJECT/tabular-benchmark/data'
 )
 
-def fetch_suite(suite_name='OpenML-CC18'):
-    suite = openml.study.get_suite(suite_name)
+# ── Paper's 4 benchmark suites (Grinsztajn et al. 2022)
+SUITES = {
+    298: 'numerical_classification',
+    297: 'numerical_regression',
+    300: 'categorical_classification',
+    299: 'categorical_regression',
+}
+
+def fetch_suite(suite_id):
+    suite = openml.study.get_suite(suite_id)
     return suite
 
 
-def load_dataset_info(task_id):
+def load_dataset_info(task_id, suite_name):
     task = openml.tasks.get_task(task_id)
     dataset = task.get_dataset()
     
@@ -26,44 +34,49 @@ def load_dataset_info(task_id):
         target=task.target_name
     )
     X = pd.DataFrame(X, columns=attribute_names)
+
+    is_regression = 'regression' in suite_name
+    if is_regression:
+        n_classes = None
+    else:
+        n_classes = len(np.unique(y))
     
     return {
         'task_id': task_id,
         'dataset_name': dataset.name,
+        'suite_name':    suite_name,
+        'task_type':     'regression' if is_regression else 'classification',
         'n_samples': X.shape[0],
         'n_features': X.shape[1],
         'n_categorical': sum(categorical_indicator),
         'n_numerical': X.shape[1] - sum(categorical_indicator),
-        'n_classes': len(np.unique(y)),
+        'n_classes': n_classes,
         'has_missing': X.isnull().any().any()
     }
 
 
-def load_all_datasets(suite):
-
+def load_all_datasets():
+ 
     summary = []
     failed_tasks = []
-    total = len(suite.tasks)
-    
-    for i, task_id in enumerate(suite.tasks):
-        try:
-            info = load_dataset_info(task_id)
-            summary.append(info)
-            print(f"[{i+1}/{total}] ✓ {info['dataset_name']} — "
-                  f"{info['n_samples']} samples, "
-                  f"{info['n_features']} features, "
-                  f"{info['n_categorical']} categorical, "
-                  f"{info['n_classes']} classes")
-            
-        except Exception as e:
-            print(f"[{i+1}/{total}] ✗ Task {task_id} failed: {e}")
-            failed_tasks.append(task_id)
-    
-    print(f"\n✓ Successfully loaded: {len(summary)} datasets")
-    print(f"✗ Failed: {len(failed_tasks)} datasets")
-    if failed_tasks:
-        print(f"Failed task IDs: {failed_tasks}")
-    
+ 
+    for suite_id, suite_name in SUITES.items():
+ 
+        suite = fetch_suite(suite_id)
+        total = len(suite.tasks)
+ 
+        for i, task_id in enumerate(suite.tasks):
+            try:
+                info = load_dataset_info(task_id, suite_name)
+                summary.append(info)
+
+                print(f"  [{i+1}/{total}] ✓ {info['dataset_name']} — "
+                      f"{info['n_samples']} samples, "
+                      f"{info['n_features']} features")
+            except Exception as e:
+                print(f"  [{i+1}/{total}] ✗ Task {task_id} failed: {e}")
+                failed_tasks.append({'task_id': task_id, 'suite': suite_name})
+ 
     return pd.DataFrame(summary), failed_tasks
 
 
@@ -76,41 +89,15 @@ def save_summary(summary_df, path=None):
     path = os.path.expanduser(path)
     
     summary_df.to_csv(path, index=False)
-    print(f"Summary saved to: {path}")
 
-
-def print_summary_stats(summary_df):
-    
-    print("\n=== DATASET SUMMARY STATISTICS ===")
-    print(f"Total datasets: {len(summary_df)}")
-    print(f"\nSamples:")
-    print(f"  Min:    {summary_df.n_samples.min()}")
-    print(f"  Max:    {summary_df.n_samples.max()}")
-    print(f"  Median: {summary_df.n_samples.median()}")
-    print(f"\nFeatures:")
-    print(f"  Min:    {summary_df.n_features.min()}")
-    print(f"  Max:    {summary_df.n_features.max()}")
-    print(f"  Median: {summary_df.n_features.median()}")
-    print(f"\nTask types:")
-    print(f"  Binary classification:     "
-          f"{(summary_df.n_classes == 2).sum()}")
-    print(f"  Multiclass classification: "
-          f"{(summary_df.n_classes > 2).sum()}")
-    print(f"\nDatasets with missing values: {summary_df.has_missing.sum()}")
-    print(f"Datasets without missing values: "
-          f"{(~summary_df.has_missing).sum()}")
 
 
 
 if __name__ == "__main__":
-    # Step 1: Fetch the suite
-    suite = fetch_suite('OpenML-CC18')
     
-    # Step 2: Load all datasets
-    summary_df, failed_tasks = load_all_datasets(suite)
+    # Step 1: Loading  all datasets
+    summary_df, failed_tasks = load_all_datasets()
+
     
-    # Step 3: Print statistics
-    print_summary_stats(summary_df)
-    
-    # Step 4: Save results
+    # Step 2: Save results
     save_summary(summary_df)
