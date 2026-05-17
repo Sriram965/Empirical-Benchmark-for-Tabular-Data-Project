@@ -15,7 +15,6 @@ openml.config.cache_directory = os.path.expanduser('~/.openml/cache')
 #Sample Capping 
 def cap_samples(X, y, max_samples=10000, random_state=42):
     if len(X) > max_samples:
-        # We use pandas sample() 
         X_sampled = X.sample(n=max_samples, random_state=random_state)
         y_sampled = y.loc[X_sampled.index]
         return X_sampled.reset_index(drop=True), y_sampled.reset_index(drop=True)
